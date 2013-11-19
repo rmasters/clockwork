@@ -177,7 +177,13 @@ class LaravelDataSource extends DataSource
 	 */
 	protected function getController()
 	{
-		$controller = $this->app['router']->getCurrentRoute()->getAction();
+		if (method_exists($this->app['router'], 'getCurrentRoute')) {
+			// Support 4.0
+			$controller = $this->app['router']->getCurrentRoute()->getAction();
+		} else {
+			// Support 4.1
+			$controller = $this->app['router']->current()->getAction();
+		}
 
 		if ($controller instanceof Closure) {
 			$controller = 'anonymous function';
@@ -232,17 +238,17 @@ class LaravelDataSource extends DataSource
 	 */
 	protected function getRoutes()
 	{
-		$routes = $this->app['router']->getRoutes()->all();
+		$routes = $this->app['router']->getRoutes();
 
 		$routesData = array();
 		foreach ($routes as $name => $route) {
 			$routesData[] = array(
-				'method' => implode(', ', $route->getMethods()),
-				'uri' => $route->getPath(),
+				'method' => implode(', ', method_exists($route, 'methods') ? $route->methods() : $route->getMethods()),
+				'uri' => method_exists($route, 'getPath') ? $route->getPath() : $route->uri(),
 				'name' => $name,
-				'action' => $route->getAction() ?: 'anonymous function',
-				'before' => implode(', ', $route->getBeforeFilters()),
-				'after' => implode(', ', $route->getAfterFilters()),
+				'action' => method_exists($route, 'getAction') ? ($route->getAction() ?: 'anonymous function') : $route->getActionName(),
+				'before' => implode(', ', method_exists($route, 'getBeforeFilters') ? $route->getBeforeFilters() : array_keys($route->beforeFilters())),
+				'after' => implode(', ', method_exists($route, 'getAfterFilters') ? $route->getAfterFilters() : array_keys($route->afterFilters())),
 			);
 		}
 
